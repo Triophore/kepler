@@ -1,0 +1,28 @@
+{
+  "name": "kepler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hapi/hapi": "^20.0.0",
+    "@hapi/inert": "^6.0.3",
+    "@hapi/joi": "^17.1.1",
+    "@hapi/vision": "^6.0.1",
+    "blipp": "^4.0.1",
+    "chalk": "^4.1.0",
+    "console-table-printer": "^2.4.28",
+    "dotenv": "^8.2.0",
+    "enjoi": "^7.0.0",
+    "hapi-cors": "^1.0.3",
+    "hapijs-status-monitor": "^1.0.1",
+    "joigoose": "^7.1.2",
+    "mongoose": "^5.10.9",
+    "require-all": "^3.0.0"
+  }
+}
