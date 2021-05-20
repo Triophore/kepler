@@ -1,0 +1,27 @@
+{
+    "source": {
+        "includePattern": ".+\\.js(doc|x)?$",  
+        "include": [".","models"],                   
+        "exclude": ["node_modules"]
+    },
+    "recurseDepth": 100,                     
+    "opts": {
+        "destination": "./docs/",              
+        "recurse": true                        
+    },
+    "templates": {
+        "systemName"            : "API Docs",
+        "footer"                : "Kepler | JS Documentation",
+        "copyright"             :  "Triophore",
+        "includeDate"           : true,
+        "navType"               : "vertical",
+        "theme"                 : "paper",
+        "linenums"              : true,
+        "collapseSymbols"       : true,
+        "inverseNav"            : false,
+        "outputSourceFiles"     : true ,
+        "outputSourcePath"      : true,
+        "sort"					: true,
+        "search"                : true 
+    }
+}

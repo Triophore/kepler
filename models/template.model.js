@@ -1,0 +1,14 @@
+module.exports={
+    name:'template',
+    schema:{
+        name:{
+            type:String,
+            unique:true,
+            required:true
+        },
+        data:{
+            type:String,
+            required:true
+        }
+    }
+}
