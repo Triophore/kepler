@@ -10,6 +10,7 @@ const getSizeCallback = require('get-folder-size');
 // OR: Multiple files in an array
 const entryFiles = [Path.join(__dirname, './index.js'), Path.join(__dirname, './kepler.js')];
 
+var copydir = require('copy-dir-progress');
 // Bundler options
 const options = {
   outDir: './dist', // The out directory to put the build files in, defaults to dist
@@ -39,6 +40,17 @@ const options = {
 
   // Run the bundler, this returns the main bundle
   // Use the events if you're using watch mode as this promise will only trigger once and not for every rebuild
+
+  if (fs.existsSync(Path.join(__dirname, options.outDir))) {
+    var rmdir = require('rmdir');
+    var path = Path.join(__dirname, options.outDir);
+
+    rmdir(path , function (err, dirs, files) {
+      console.log(dirs);
+      console.log(files);
+      console.log('Dist folder are removed');
+    });
+  }
   const bundle = await bundler.bundle();
 
 
@@ -49,7 +61,46 @@ const options = {
 //await copyWithProgress(Path.join(__dirname, 'models'),Path.join(__dirname, options.outDir))
  
 // copy source folder to destination
+console.log("Moving Core files.. to build directory");
+copydir.sync(Path.join(__dirname, 'core'),Path.join(__dirname, options.outDir,'core'), {
+  utimes: true,  // keep add time and modify time
+  mode: true,    // keep file mode
+  cover: true    // cover file when exists, default is true
+});
 
+
+console.log("Moving Model files.. to build directory");
+copydir.sync(Path.join(__dirname, 'models'),Path.join(__dirname, options.outDir,'models'), {
+  utimes: true,  // keep add time and modify time
+  mode: true,    // keep file mode
+  cover: true    // cover file when exists, default is true
+});
+
+
+console.log("Moving Route files.. to build directory");
+copydir.sync(Path.join(__dirname, 'routes'),Path.join(__dirname, options.outDir,'routes'), {
+  utimes: true,  // keep add time and modify time
+  mode: true,    // keep file mode
+  cover: true    // cover file when exists, default is true
+});
+
+var get_package = require('./package.json');
+
+delete get_package.devDependencies;
+
+console.log("Prepping package.json")
+fs.writeFile(Path.join(__dirname, options.outDir,'package.json'), JSON.stringify(get_package), function(err) {
+    if (err) throw err;
+    console.log('package.json complete');
+    }
+);
+
+console.log("Copy config file")
+fs.copyFile(Path.join(__dirname,'config.js'),Path.join(__dirname, options.outDir,'config.js'),function(err) {
+    if (err) throw err;
+    console.log('Copy config complete');
+    }
+);
 
 
 })();

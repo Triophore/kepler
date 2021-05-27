@@ -6,9 +6,7 @@ module.exports = {
             type:String
         }
     },
-    plugin:{
-
-    },
+    plugins:[],
     form:{
         
     }

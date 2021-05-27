@@ -1,5 +1,5 @@
 module.exports= {
-      name:'team',
+      name:'testuser',
       schema:{
         
       }

@@ -1,6 +1,5 @@
 module.exports = {
     name:"user",
-    crud:true,
     schema:{
         username:{
             type:String,

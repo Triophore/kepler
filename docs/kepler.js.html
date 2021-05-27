@@ -37,6 +37,13 @@
 				</ul>
 			</li>
 			
+			<li class="dropdown">
+				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="global.html#flattenObject">flattenObject</a></li>
+				</ul>
+			</li>
+			
 		</ul>
         
             <div class="col-sm-3 col-md-3">
@@ -91,12 +98,13 @@ const Inert = require('@hapi/inert');
 /**@ignore */
 const Vision = require('@hapi/vision');
 /**@ignore */
-const Joi = require('@hapi/joi');
+const Joi = require('joi');
 /**@ignore */
-const Enjoi = require('enjoi');
+const JOI_builder = require( 'joi-json' ).builder();
+const HapiSwagger = require('hapi-swagger');
 /**@ignore */
 const { Table } = require('console-table-printer');
-console.log(process.env.RUNTIME)
+//console.log(process.env.RUNTIME)
 /**
  * Using chalk library for colured console out put
  * and aliasing console.log() => log()
@@ -105,12 +113,13 @@ console.log(process.env.RUNTIME)
 const chalk = require('chalk');
 /**@ignore */
 const log = console.log;
+const Pack = require('./package');
 /**@ignore */
 var models = {};
 var validator = {};
 var schemas = {};
 /**@ignore */
-module.exports = async (config) =>{
+module.exports.server = async (config) =>{
   /**
    * Triophore Logo and contact details
    */
@@ -171,6 +180,8 @@ console.log("-------------------------------------------------------------------
         plugin: require('hapi-cors'),
     });
 
+    await server.register(require('susie'));
+
     //await server.register({ plugin: require('blipp'), options: { showAuth: true } });
 
     await server.register({
@@ -183,6 +194,39 @@ console.log("-------------------------------------------------------------------
         }
     });
 
+    if(guardConfig(config.logging))
+    {
+        
+        if(guardConfig(config.logging.log))
+        {
+            await server.register({
+                plugin: require('laabr'),
+                options:  {
+                    formats: {
+                      onPostStart: ':time :start :level :message',
+                      log: false
+                    },
+                    tokens: { start: () => '[start]' },
+                    indent: 0,
+                    colored: true
+                  },
+              });
+        }
+    }
+
+    if(guardConfig(config.disinfect))
+    {
+    
+          await  server.register({
+                plugin: require('disinfect'),
+                options: {
+                    disinfectQuery: config.disinfect.query || false,
+                    disinfectParams: config.disinfect.params || false,
+                    disinfectPayload: config.disinfect.payload || false
+                }
+            })
+        
+    }
 /**
  * check the routes dir
  */
@@ -200,20 +244,23 @@ console.log("-------------------------------------------------------------------
         excludeDirs :  /^\.(git|svn)$/,
         recursive   : true
     });
+
+/**
+ * get all validators from the routes folder
+ */    
+ var validators = require('require-all')({
+    dirname     :  config.validators,
+    filter      :  /(.+validator)\.js$/,
+    excludeDirs :  /^\.(git|svn)$/,
+    recursive   : true
+});
+//console.log(validators)
 /**
  * check if models foder exist
  */
     if(guardConfig(config.models))
     {
-        /**
-         * load all models from the models folder
-         */
-        var models_loaded = require('require-all')({
-            dirname     :  config.models,
-            filter      :  /(.+model)\.js$/,
-            excludeDirs :  /^\.(git|svn)$/,
-            recursive   : true
-        });
+ 
         //console.log(models_loaded)
     }
 /**
@@ -237,11 +284,23 @@ console.log("-------------------------------------------------------------------
         db.once('open', function() {
             LogSuccess("DB Connected")
         });
+
+               /**
+         * load all models from the models folder
+         */
+                var models_loaded = require('require-all')({
+                    dirname     :  config.models,
+                    filter      :  /(.+model)\.js$/,
+                    excludeDirs :  /^\.(git|svn)$/,
+                    recursive   : false
+                });
         //const Joigoose = require("joigoose")(mongoose);
         /**
          * call the pasre_model to parse the models into usable mongoose model
          */
-        var parsed_models = parse_model(models_loaded);
+        var parsed_models = await parse_model(models_loaded);
+        console.log("parsed_models ")
+        console.log(parsed_models )
         /**
          * Temp models object
          */
@@ -274,11 +333,14 @@ console.log("-------------------------------------------------------------------
             var schema_temp = parsed_models[m_in].schema;
             if(guardConfig(schema_temp)){
             var schema = new mongoose.Schema(schema_temp) //Joigoose.convert(enjoi_schema)
+            console.log(parsed_models[m_in].plugins)
             if(guardConfig(parsed_models[m_in].plugins)){
                 if(guardConfig(parsed_models[m_in].plugins.length)){
                     if(guardConfig(parsed_models[m_in].plugins.length) > 0){
                         //schema.plugin(require())
                         for(var plugin in parsed_models[m_in].plugins){
+                            console.log("plgin")
+                            console.log(parsed_models[m_in].plugins[plugin])
                             schema.plugin(require(parsed_models[m_in].plugins[plugin])); 
                         }
                     }
@@ -499,7 +561,7 @@ console.log("-------------------------------------------------------------------
 
     
 
-    var parsed_route = parse_route(routes);
+    var parsed_route =await parse_route(routes,validators);
     //console.log(parsed_route);
     for(var r in parsed_route){
         server.route(parsed_route[r]);
@@ -540,6 +602,7 @@ console.log("-------------------------------------------------------------------
 
     
     if(guardConfig(config.explorer)){
+        if (process.env.NODE_ENV === 'development') {
         server.route({
             method: 'GET',
             path: config.explorer.api || "/docs",
@@ -646,16 +709,33 @@ console.log("-------------------------------------------------------------------
                 }*/
                 //
             }
-        })
+        });
+     }
     }
 
 
 
+    const swaggerOptions = {
+        info: {
+                title: 'Test API Documentation',
+                version: Pack.version,
+            },
+        };
+
+    await server.register([
+        Inert,
+        Vision,
+        {
+            plugin: HapiSwagger,
+            options: swaggerOptions
+        }
+    ]);
 
 
-    await server.start();
+    //await server.start();
     //console.log('Server running on %s', server.info.uri);
-    LogSuccess('Server running on ' + server.info.uri);
+    //LogSuccess('Server running on ' + server.info.uri);
+    return server;
 }
 /** 
  * Utility function for general purpose use -----------------------------------
@@ -698,7 +778,9 @@ function LogInfo(data){
     log(chalk.yellow.bold('[INFO]:-'+data));
 }
 
-
+module.exports.LogError = LogError;
+module.exports.LogSuccess = LogSuccess;
+module.exports.LogInfo = LogInfo;
 
 
 
@@ -712,17 +794,20 @@ function LogInfo(data){
  * Parse models get travese through json 
  */
 /**@ignore */
-function parse_model(models){
+async function parse_model(_models){
     var models_parsed = [];
-    for(var key in models){       
-        if(models[key].hasOwnProperty("name") &amp;&amp; models[key].hasOwnProperty("schema") ) {
-            models_parsed.push(models[key])
-        }else{
-            var d = get_sub_model(models[key]);
+    for (var key in _models){  
+               
+        if(_models[key].hasOwnProperty("name") &amp;&amp; _models[key].hasOwnProperty("schema") ) {
+            models_parsed.push(_models[key])
+        }
+        /*
+        else{
+            var d = get_sub_model(_models[key]);
             for(var r in d){
                 models_parsed.push(d[r]);
             } 
-        }
+        }*/
     }
     return models_parsed;
 }
@@ -735,6 +820,7 @@ function get_sub_model(routes){
     for(var key in routes){   
         if(routes[key].hasOwnProperty("name") &amp;&amp; routes[key].hasOwnProperty("schema")) {
             sub_r.push(routes[key])
+
         }else{
             get_sub_model(routes[key])
         }
@@ -745,13 +831,30 @@ function get_sub_model(routes){
  * Parse routes get travese through json 
  */
 /**@ignore */
-function parse_route(routes){
+function parse_route(routes,validators){
+   // console.log(routes)
     var route_parsed = [];
-    for(var key in routes){       
-        if(routes[key].hasOwnProperty("method") &amp;&amp; routes[key].hasOwnProperty("path") &amp;&amp; routes[key].hasOwnProperty("handler")) {
+
+    for(var key in routes){   
+       // console.log(typeof routes[key])   
+        if(routes[key].hasOwnProperty("method") &amp;&amp; routes[key].hasOwnProperty("path")) { //&amp;&amp; routes[key].hasOwnProperty("handler") [ERROR]:-RangeError: Maximum call stack size exceeded
+            if(routes[key].hasOwnProperty("options")){
+                if(routes[key].options.hasOwnProperty("validate")){
+                   
+                    var t_validator = routes[key].options.validate;
+
+                    if(validators[t_validator]){
+                    routes[key].options.validate = JOI_builder.build(validators[t_validator])
+                    }
+                   
+                }
+            }
             route_parsed.push(routes[key])
+ 
         }else{
-            var d = get_sub_routes(routes[key]);
+            
+            var d = get_sub_routes(routes[key],validators);
+            if(d == null) break;
             for(var r in d){
                 route_parsed.push(d[r]);
             } 
@@ -764,13 +867,22 @@ function parse_route(routes){
  * get all relevent models and removing sub directory values
  */
 /**@ignore */
-function get_sub_routes(routes){
+function get_sub_routes(routes,validators){
     var sub_r = [];
     for(var key in routes){   
-        if(routes[key].hasOwnProperty("method") &amp;&amp; routes[key].hasOwnProperty("path") &amp;&amp; routes[key].hasOwnProperty("handler")) {
+        if(routes[key].hasOwnProperty("method") &amp;&amp; routes[key].hasOwnProperty("path")) {
+            if(routes[key].hasOwnProperty("options")){
+                if(routes[key].options.hasOwnProperty("validate")){
+                    var t_validator = routes[key].options.validate;
+                    if(validators[t_validator]){
+                    routes[key].options.validate = JOI_builder.build(validators[t_validator])
+                    }
+                   
+                }
+            }
             sub_r.push(routes[key])
         }else{
-            get_sub_routes(routes[key])
+            get_sub_routes(routes[key],validators)
         }
     }
     return sub_r
@@ -827,9 +939,9 @@ process.on('unhandledRejection', (err) => {
 	</span>
 
 <span class="jsdoc-message">
-	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.6</a>
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.7</a>
 	
-		on 2021-05-09T02:24:51+05:30
+		on 2021-05-23T20:21:11+05:30
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

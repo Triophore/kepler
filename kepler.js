@@ -25,7 +25,12 @@ const JOI_builder = require( 'joi-json' ).builder();
 const HapiSwagger = require('hapi-swagger');
 /**@ignore */
 const { Table } = require('console-table-printer');
-console.log(process.env.RUNTIME)
+const { graphqlHapi } = require('apollo-server-hapi');
+const { composeMongoose } = require('graphql-compose-mongoose');
+const { schemaComposer } =  require('graphql-compose');
+const SocketIO = require('socket.io');
+const Blipp = require('blipp');
+//console.log(process.env.RUNTIME)
 /**
  * Using chalk library for colured console out put
  * and aliasing console.log() => log()
@@ -74,9 +79,9 @@ console.log("-------------------------------------------------------------------
 console.log("");
 log(chalk.blue("Thank you for installing Kepler"));
 console.log("");
-log(chalk.green("By Triophore Technologies [https://triophore.com]"));
+//log(chalk.green("By Triophore Technologies [https://triophore.com]"));
 console.log("");
-log(chalk.blue("Please visit :: https://triophore.com/products/kepler for more info"));
+//log(chalk.blue("Please visit :: https://triophore.com/products/kepler for more info"));
 console.log("------------------------------------------------------------------------------------------------------");
 
 
@@ -101,8 +106,10 @@ console.log("-------------------------------------------------------------------
         plugin: require('hapi-cors'),
     });
 
-    //await server.register({ plugin: require('blipp'), options: { showAuth: true } });
+    await server.register(require('susie'));
 
+    //await server.register({ plugin: require('blipp'), options: { showAuth: true } });
+/*
     await server.register({
         plugin: require('hapijs-status-monitor'),
         options: {
@@ -112,6 +119,56 @@ console.log("-------------------------------------------------------------------
           }
         }
     });
+*/
+
+    if(guardConfig(config.logging))
+    {
+        
+        if(guardConfig(config.logging.log))
+        {
+            await server.register({
+                plugin: require('laabr'),
+                options:  {
+                    formats: {
+                      onPostStart: ':time :start :level :message',
+                      log: false
+                    },
+                    tokens: { start: () => '[start]' },
+                    indent: 0,
+                    colored: true
+                  },
+              });
+        }
+    }
+
+    if(guardConfig(config.disinfect))
+    {
+    
+          await  server.register({
+                plugin: require('disinfect'),
+                options: {
+                    disinfectQuery: config.disinfect.query || false,
+                    disinfectParams: config.disinfect.params || false,
+                    disinfectPayload: config.disinfect.payload || false
+                }
+            })
+        
+    }
+/*
+await server.register({
+    plugin: graphqlHapi,
+    options: {
+      path: '/graphql',
+      graphqlOptions: {
+        schema: myGraphQLSchema,
+      },
+      route: {
+        cors: true,
+      },
+    },
+  });*/
+
+  await server.register({ plugin: Blipp, options: { showAuth: true } });
 
 /**
  * check the routes dir
@@ -140,21 +197,13 @@ console.log("-------------------------------------------------------------------
     excludeDirs :  /^\.(git|svn)$/,
     recursive   : true
 });
-console.log(validators)
+//console.log(validators)
 /**
  * check if models foder exist
  */
     if(guardConfig(config.models))
     {
-        /**
-         * load all models from the models folder
-         */
-        var models_loaded = require('require-all')({
-            dirname     :  config.models,
-            filter      :  /(.+model)\.js$/,
-            excludeDirs :  /^\.(git|svn)$/,
-            recursive   : true
-        });
+ 
         //console.log(models_loaded)
     }
 /**
@@ -178,11 +227,21 @@ console.log(validators)
         db.once('open', function() {
             LogSuccess("DB Connected")
         });
+
+               /**
+         * load all models from the models folder
+         */
+                var models_loaded = require('require-all')({
+                    dirname     :  config.models,
+                    filter      :  /(.+model)\.js$/,
+                    excludeDirs :  /^\.(git|svn)$/,
+                    recursive   : false
+                });
         //const Joigoose = require("joigoose")(mongoose);
         /**
          * call the pasre_model to parse the models into usable mongoose model
          */
-        var parsed_models = parse_model(models_loaded);
+        var parsed_models = await parse_model(models_loaded);
         /**
          * Temp models object
          */
@@ -282,19 +341,7 @@ console.log(validators)
                  * GET ALL Models and GET Specific models data by id
                  */
                 //+'{id?}'
-
-
-                /*
-                        if(guardConfig(request.params.id)){
-                            var result =  await models[name].find({_id:request.params.id});
-                            return result;
-                        }else{
-                          .find({})
-                        }
-                        return {};*/
-
-                        //var result =  await models[name];
-                /*    */
+/*
                 var url_path = '/'+crud_url+'/'+name;
                 server.route({
                     method: 'GET',
@@ -309,7 +356,22 @@ console.log(validators)
                         return result;
                     }
                 });
-             
+
+                var by_id_path = '/'+crud_url+'/'+name+'/{id}';
+                server.route({
+                    method: 'GET',
+                    path: by_id_path,
+                    handler: async (request, h,url_path) => {
+                        //console.log(request.path);
+                        
+                        var m_name =  request.path.replace("/" + server.crud_url + "/","");
+
+                        var result =  await models[m_name].find({});
+
+                        return result;
+                    }
+                });
+ */            
 
                
 
@@ -365,9 +427,24 @@ console.log(validators)
             }
 
 
+
+
+
+
             
 
 
+        }
+        if(guardConfig(config.auth)){
+            var auth_policies = require('require-all')({
+                dirname     :  config.auth,
+                filter      :  /(.+auth)\.js$/,
+                excludeDirs :  /^\.(git|svn)$/,
+                recursive   : true
+            });
+            for(var auth_index in auth_policies){
+                auth_policies[auth_index](server,config,models)
+            }
         }
 
 
@@ -421,6 +498,19 @@ console.log(validators)
             },
             options: {
                models
+            }
+        });
+
+        await server.register({
+            plugin: {
+                name: 'Kepler-Config-Injection-Plugin',
+                version: '1.0.0',
+                register: async function (server, options) {
+                   await server.decorate('toolkit', 'injectedConfig', options.config);
+                }
+            },
+            options: {
+               config
             }
         });
 
@@ -610,6 +700,66 @@ console.log(validators)
         }
     ]);
 
+   
+
+     if(guardConfig(config.socket_io)){
+        const options = { 
+            serveClient: false,
+            cookie: false,
+            log: true,
+            origins: ["*"],
+            cors: {
+                origin: "*",
+                methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+                preflightContinue: false,
+                optionsSuccessStatus: 204
+            }
+        };
+        const io = require('socket.io')(server.listener,config.socket_io.options || options)
+
+        if(guardConfig(config.socket_io.redis)){
+            //io.adapter(redisAdapter({ host: 'localhost', port: 6379 }));
+        }
+
+            var sockets_loaded = require('require-all')({
+                    dirname     :  config.socket_io.path,
+                    filter      :  /(.+socket)\.js$/,
+                    excludeDirs :  /^\.(git|svn)$/,
+                    recursive   : false,
+            });
+
+            for(var socket_index in sockets_loaded){
+                sockets_loaded[socket_index](io,models)
+            }
+       
+
+        io.on("connection", socket => {
+           
+
+                
+        });
+
+        io.on("connection", socket => {
+           
+
+                
+        });
+
+        await server.register({
+            plugin: {
+                name: 'Kepler-Socket.io-Plugin',
+                version: '1.0.0',
+                register: async function (server, options) {                   
+                   await server.decorate('toolkit', 'socket_io',options.io);
+                }
+            },
+            options: {
+               io
+            }
+        });
+    }
+
+
 
     //await server.start();
     //console.log('Server running on %s', server.info.uri);
@@ -673,19 +823,20 @@ module.exports.LogInfo = LogInfo;
  * Parse models get travese through json 
  */
 /**@ignore */
-async function parse_model(models){
+async function parse_model(_models){
     var models_parsed = [];
-    for (var key in models){  
-    
-           
-        if(models[key].hasOwnProperty("name") && models[key].hasOwnProperty("schema") ) {
-            models_parsed.push(models[key])
-        }else{
-            var d = get_sub_model(models[key]);
+    for (var key in _models){  
+               
+        if(_models[key].hasOwnProperty("name") && _models[key].hasOwnProperty("schema") ) {
+            models_parsed.push(_models[key])
+        }
+        /*
+        else{
+            var d = get_sub_model(_models[key]);
             for(var r in d){
                 models_parsed.push(d[r]);
             } 
-        }
+        }*/
     }
     return models_parsed;
 }
@@ -710,7 +861,7 @@ function get_sub_model(routes){
  */
 /**@ignore */
 function parse_route(routes,validators){
-    console.log(routes)
+   // console.log(routes)
     var route_parsed = [];
 
     for(var key in routes){   
@@ -751,9 +902,7 @@ function get_sub_routes(routes,validators){
         if(routes[key].hasOwnProperty("method") && routes[key].hasOwnProperty("path")) {
             if(routes[key].hasOwnProperty("options")){
                 if(routes[key].options.hasOwnProperty("validate")){
-                    console.log("hhe")
                     var t_validator = routes[key].options.validate;
-                    console.log( t_validator)
                     if(validators[t_validator]){
                     routes[key].options.validate = JOI_builder.build(validators[t_validator])
                     }

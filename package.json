@@ -16,27 +16,38 @@
     "@hapi/hapi": "^20.0.0",
     "@hapi/inert": "^6.0.3",
     "@hapi/vision": "^6.0.1",
+    "apollo-server-hapi": "^2.24.1",
     "blipp": "^4.0.1",
     "chalk": "^4.1.0",
     "command-line-usage": "^6.1.1",
     "console-table-printer": "^2.4.28",
+    "date-fns": "^2.21.3",
+    "disinfect": "^1.1.0",
     "dotenv": "^8.2.0",
     "fs-extra": "^10.0.0",
+    "graphql": "^15.5.0",
+    "graphql-compose": "^8.1.0",
+    "graphql-compose-mongoose": "^9.3.1",
+    "hapi-auth-jwt2": "^10.2.0",
     "hapi-cors": "^1.0.3",
     "hapi-swagger": "^14.1.3",
-    "hapijs-status-monitor": "^1.0.1",
-    "ink-docstrap": "^1.3.2",
     "joi-json": "github:venusdharan/joi-json",
     "joigoose": "^7.1.2",
-    "mongoose": "^5.10.9",
+    "laabr": "^6.1.3",
+    "mongoose": "^5.12.10",
     "mongoose-paginate-v2": "^1.3.17",
-    "require-all": "^3.0.0"
+    "require-all": "^3.0.0",
+    "socket.io": "^3.1.2",
+    "susie": "^3.0.0"
   },
   "devDependencies": {
+    "copy-dir-progress": "^1.3.0",
     "get-folder-size": "^2.0.1",
+    "ink-docstrap": "^1.3.2",
     "jsdoc": "^3.6.6",
     "nodemon": "^2.0.7",
     "parcel-bundler": "^1.12.5",
-    "prompts": "^2.4.1"
+    "prompts": "^2.4.1",
+    "rmdir": "^1.2.0"
   }
 }

@@ -3,6 +3,7 @@ module.exports = {
   method: 'PUT',
   path: '/v1/store/{id?}',
   options: {
+    auth:false,
     handler: (request, h) => {
       return h.response('success');
     },

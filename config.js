@@ -22,21 +22,79 @@ module.exports = {
      */
     routes:path.join(__dirname,"routes"),
     /**
-     * Models is the folder that will be used to loaded modules
+     * Models is the folder that will be used to load modules
      * this model file will be used to create models 
      * Mongoose will is used as the ODM(Object Document Models)
      */
     models:path.join(__dirname,"models"),
+     /**
+     * Validators is the folder that will be used to load Validation
+     * this should be written JSON , will be converted into JOI 
+     * The Validators will be used in corresponding routes
+     */
+    auth:path.join(__dirname,"auth"),
+    /**
+     * Status Monitor for getting server status and health
+     */
     validators:path.join(__dirname,"validators"),
+    /**
+     * Status Monitor for getting server status and health
+     */
     status:{
         title:"Delivery APP Status",
         url:"/get_status"
     },
+    /**
+     * API Explorer path for visusalizing REST API
+     * Note this will be omitted in production
+     */
     explorer:{
       name:"Triophore API"  ,
       desc:"This API is a test",
       api:"/api/docs"
     },
+    /**
+     * Logging features and options
+     */
+    logging:{
+        log:true,
+        options:{}
+    },
+    /**
+     * Sanitize the input 
+     */
+    disinfect:{
+        query:true,
+        params:true,
+        payload:true,
+    },
+    /**
+    This is socket io settings,
+    This key sets the socket.io server to start, with default options
+    The socket.io versio is v3,
+    also comes with socket io adapter, redis based
+    */
+    socket_io:{
+        options:{
+            serveClient: false,
+            cookie: false,
+            log: true,
+            origins: ["*"],
+            cors: {
+                origin: "*",
+                methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+                preflightContinue: false,
+                optionsSuccessStatus: 204
+            }
+        },
+        path:path.join(__dirname,"sockets"),
+        redis:{
+
+        }
+    },
+    /**
+     * Meta data about the kepler project
+     */
     meta:{
         name:"Shopit API",
         desc:"Description of the API",
