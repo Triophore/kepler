@@ -554,6 +554,7 @@ await server.register({
    
     for(var route in server.table()){
         var route_temp = server.table()[route];
+       // console.log(route_temp)
         server_route_table.addRow(
             {
                 Path : route_temp.path , Method : route_temp.method , Auth : route_temp.settings.auth ? undefined : "none" 

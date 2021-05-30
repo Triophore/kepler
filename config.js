@@ -15,7 +15,7 @@ module.exports = {
      * used by the ODM (Mongoose)
      * 
      */
-    mongodb:"mongodb+srv://admin:admin@cluster0.evips.mongodb.net/EazyERP?retryWrites=true&w=majority",
+    mongodb:"mongodb+srv://admin:admin@cluster0.evips.mongodb.net/skool?retryWrites=true&w=majority",
     /**
      * Routes folder that will be used to load all route related files
      * Route file must be of the form file.route.js
