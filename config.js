@@ -51,7 +51,8 @@ module.exports = {
     explorer:{
       name:"Triophore API"  ,
       desc:"This API is a test",
-      api:"/api/docs"
+      api:"/api/docs",
+      exclude:"swagger"
     },
     /**
      * Logging features and options

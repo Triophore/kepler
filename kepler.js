@@ -575,16 +575,27 @@ await server.register({
         if (process.env.NODE_ENV === 'development') {
         server.route({
             method: 'GET',
+            config:{auth:false},
             path: config.explorer.api || "/docs",
             handler: async(request, h) => {
             const server_table = server.table();
             var res = [];
 
                server_table.forEach(function (name){
-                   res.push({
-                      method:name.method,
-                      path:name.path 
-                   })
+                   if(guardConfig(config.explorer.exclude)){
+                    if(!name.path.includes(config.explorer.exclude)){
+                        res.push({
+                            method:name.method,
+                            path:name.path 
+                         })
+                    }
+                   }else{
+                    res.push({
+                        method:name.method,
+                        path:name.path 
+                     })
+                   }
+                   
                });
                var doc_name = config.meta.name || 'API docs';
                var doc_desc = config.meta.desc || 'No description';
