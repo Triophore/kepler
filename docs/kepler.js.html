@@ -104,6 +104,11 @@ const JOI_builder = require( 'joi-json' ).builder();
 const HapiSwagger = require('hapi-swagger');
 /**@ignore */
 const { Table } = require('console-table-printer');
+const { graphqlHapi } = require('apollo-server-hapi');
+const { composeMongoose } = require('graphql-compose-mongoose');
+const { schemaComposer } =  require('graphql-compose');
+const SocketIO = require('socket.io');
+const Blipp = require('blipp');
 //console.log(process.env.RUNTIME)
 /**
  * Using chalk library for colured console out put
@@ -153,9 +158,9 @@ console.log("-------------------------------------------------------------------
 console.log("");
 log(chalk.blue("Thank you for installing Kepler"));
 console.log("");
-log(chalk.green("By Triophore Technologies [https://triophore.com]"));
+//log(chalk.green("By Triophore Technologies [https://triophore.com]"));
 console.log("");
-log(chalk.blue("Please visit :: https://triophore.com/products/kepler for more info"));
+//log(chalk.blue("Please visit :: https://triophore.com/products/kepler for more info"));
 console.log("------------------------------------------------------------------------------------------------------");
 
 
@@ -183,7 +188,7 @@ console.log("-------------------------------------------------------------------
     await server.register(require('susie'));
 
     //await server.register({ plugin: require('blipp'), options: { showAuth: true } });
-
+/*
     await server.register({
         plugin: require('hapijs-status-monitor'),
         options: {
@@ -193,6 +198,7 @@ console.log("-------------------------------------------------------------------
           }
         }
     });
+*/
 
     if(guardConfig(config.logging))
     {
@@ -227,6 +233,22 @@ console.log("-------------------------------------------------------------------
             })
         
     }
+/*
+await server.register({
+    plugin: graphqlHapi,
+    options: {
+      path: '/graphql',
+      graphqlOptions: {
+        schema: myGraphQLSchema,
+      },
+      route: {
+        cors: true,
+      },
+    },
+  });*/
+
+  await server.register({ plugin: Blipp, options: { showAuth: true } });
+
 /**
  * check the routes dir
  */
@@ -299,8 +321,6 @@ console.log("-------------------------------------------------------------------
          * call the pasre_model to parse the models into usable mongoose model
          */
         var parsed_models = await parse_model(models_loaded);
-        console.log("parsed_models ")
-        console.log(parsed_models )
         /**
          * Temp models object
          */
@@ -333,14 +353,11 @@ console.log("-------------------------------------------------------------------
             var schema_temp = parsed_models[m_in].schema;
             if(guardConfig(schema_temp)){
             var schema = new mongoose.Schema(schema_temp) //Joigoose.convert(enjoi_schema)
-            console.log(parsed_models[m_in].plugins)
             if(guardConfig(parsed_models[m_in].plugins)){
                 if(guardConfig(parsed_models[m_in].plugins.length)){
                     if(guardConfig(parsed_models[m_in].plugins.length) > 0){
                         //schema.plugin(require())
                         for(var plugin in parsed_models[m_in].plugins){
-                            console.log("plgin")
-                            console.log(parsed_models[m_in].plugins[plugin])
                             schema.plugin(require(parsed_models[m_in].plugins[plugin])); 
                         }
                     }
@@ -403,19 +420,7 @@ console.log("-------------------------------------------------------------------
                  * GET ALL Models and GET Specific models data by id
                  */
                 //+'{id?}'
-
-
-                /*
-                        if(guardConfig(request.params.id)){
-                            var result =  await models[name].find({_id:request.params.id});
-                            return result;
-                        }else{
-                          .find({})
-                        }
-                        return {};*/
-
-                        //var result =  await models[name];
-                /*    */
+/*
                 var url_path = '/'+crud_url+'/'+name;
                 server.route({
                     method: 'GET',
@@ -430,7 +435,22 @@ console.log("-------------------------------------------------------------------
                         return result;
                     }
                 });
-             
+
+                var by_id_path = '/'+crud_url+'/'+name+'/{id}';
+                server.route({
+                    method: 'GET',
+                    path: by_id_path,
+                    handler: async (request, h,url_path) => {
+                        //console.log(request.path);
+                        
+                        var m_name =  request.path.replace("/" + server.crud_url + "/","");
+
+                        var result =  await models[m_name].find({});
+
+                        return result;
+                    }
+                });
+ */            
 
                
 
@@ -486,9 +506,24 @@ console.log("-------------------------------------------------------------------
             }
 
 
+
+
+
+
             
 
 
+        }
+        if(guardConfig(config.auth)){
+            var auth_policies = require('require-all')({
+                dirname     :  config.auth,
+                filter      :  /(.+auth)\.js$/,
+                excludeDirs :  /^\.(git|svn)$/,
+                recursive   : true
+            });
+            for(var auth_index in auth_policies){
+                auth_policies[auth_index](server,config,models)
+            }
         }
 
 
@@ -545,6 +580,19 @@ console.log("-------------------------------------------------------------------
             }
         });
 
+        await server.register({
+            plugin: {
+                name: 'Kepler-Config-Injection-Plugin',
+                version: '1.0.0',
+                register: async function (server, options) {
+                   await server.decorate('toolkit', 'injectedConfig', options.config);
+                }
+            },
+            options: {
+               config
+            }
+        });
+
     }
 
 
@@ -585,6 +633,7 @@ console.log("-------------------------------------------------------------------
    
     for(var route in server.table()){
         var route_temp = server.table()[route];
+       // console.log(route_temp)
         server_route_table.addRow(
             {
                 Path : route_temp.path , Method : route_temp.method , Auth : route_temp.settings.auth ? undefined : "none" 
@@ -605,16 +654,27 @@ console.log("-------------------------------------------------------------------
         if (process.env.NODE_ENV === 'development') {
         server.route({
             method: 'GET',
+            config:{auth:false},
             path: config.explorer.api || "/docs",
             handler: async(request, h) => {
             const server_table = server.table();
             var res = [];
 
                server_table.forEach(function (name){
-                   res.push({
-                      method:name.method,
-                      path:name.path 
-                   })
+                   if(guardConfig(config.explorer.exclude)){
+                    if(!name.path.includes(config.explorer.exclude)){
+                        res.push({
+                            method:name.method,
+                            path:name.path 
+                         })
+                    }
+                   }else{
+                    res.push({
+                        method:name.method,
+                        path:name.path 
+                     })
+                   }
+                   
                });
                var doc_name = config.meta.name || 'API docs';
                var doc_desc = config.meta.desc || 'No description';
@@ -730,6 +790,66 @@ console.log("-------------------------------------------------------------------
             options: swaggerOptions
         }
     ]);
+
+   
+
+     if(guardConfig(config.socket_io)){
+        const options = { 
+            serveClient: false,
+            cookie: false,
+            log: true,
+            origins: ["*"],
+            cors: {
+                origin: "*",
+                methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+                preflightContinue: false,
+                optionsSuccessStatus: 204
+            }
+        };
+        const io = require('socket.io')(server.listener,config.socket_io.options || options)
+
+        if(guardConfig(config.socket_io.redis)){
+            //io.adapter(redisAdapter({ host: 'localhost', port: 6379 }));
+        }
+
+            var sockets_loaded = require('require-all')({
+                    dirname     :  config.socket_io.path,
+                    filter      :  /(.+socket)\.js$/,
+                    excludeDirs :  /^\.(git|svn)$/,
+                    recursive   : false,
+            });
+
+            for(var socket_index in sockets_loaded){
+                sockets_loaded[socket_index](io,models)
+            }
+       
+
+        io.on("connection", socket => {
+           
+
+                
+        });
+
+        io.on("connection", socket => {
+           
+
+                
+        });
+
+        await server.register({
+            plugin: {
+                name: 'Kepler-Socket.io-Plugin',
+                version: '1.0.0',
+                register: async function (server, options) {                   
+                   await server.decorate('toolkit', 'socket_io',options.io);
+                }
+            },
+            options: {
+               io
+            }
+        });
+    }
+
 
 
     //await server.start();
@@ -941,7 +1061,7 @@ process.on('unhandledRejection', (err) => {
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.7</a>
 	
-		on 2021-05-23T20:21:11+05:30
+		on 2022-05-18T11:59:01+05:30
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

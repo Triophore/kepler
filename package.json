@@ -5,15 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "build": "node builder.js",
+    "build": "node ./kepler/builder.js",
     "docs": "jsdoc -c ./jsdoc.json -t ./node_modules/ink-docstrap/template -R README.md ",
-    "gen": "node generator.js"
+    "gen": "node ./kepler/generator.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@hapi/hapi": "^20.0.0",
+    "@hapi/hapi": "^20.2.2",
     "@hapi/inert": "^6.0.3",
     "@hapi/vision": "^6.0.1",
     "apollo-server-hapi": "^2.24.1",
@@ -21,6 +21,7 @@
     "chalk": "^4.1.0",
     "command-line-usage": "^6.1.1",
     "console-table-printer": "^2.4.28",
+    "copy-dir": "^1.3.0",
     "date-fns": "^2.21.3",
     "disinfect": "^1.1.0",
     "dotenv": "^8.2.0",
@@ -41,7 +42,6 @@
     "susie": "^3.0.0"
   },
   "devDependencies": {
-    "copy-dir-progress": "^1.3.0",
     "get-folder-size": "^2.0.1",
     "ink-docstrap": "^1.3.2",
     "jsdoc": "^3.6.6",
